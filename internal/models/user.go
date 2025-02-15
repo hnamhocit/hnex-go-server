@@ -1,25 +1,10 @@
 package models
 
-import (
-	"github.com/hnamhocit/go-learning/internal/types"
-)
-
 type Role string
-
-const (
-	RoleUser  Role = "USER"
-	RoleAdmin Role = "ADMIN"
-)
-
 type Theme string
 
-const (
-	LightTheme Theme = "LIGHT"
-	DarkTheme  Theme = "DARK"
-)
-
 type User struct {
-	types.Model
+	Model
 	Password        string  `gorm:"column:password;not null" json:"password"`
 	DisplayName     string  `gorm:"column:display_name;not null" json:"display_name"`
 	Email           string  `gorm:"unique,column:email;not null" json:"email"`
@@ -32,4 +17,5 @@ type User struct {
 	Theme           Theme   `gorm:"column:theme,default:'LIGHT',type:ENUM('LIGHT', 'DARK')" json:"theme"`
 	Role            Role    `gorm:"column:role,default:'USER',type:ENUM('USER', 'ADMIN')" json:"role"`
 	IsEmailVerified bool    `gorm:"column:is_email_verified;default:false" json:"is_email_verified"`
+	IsBanned        bool    `gorm:"column:is_banned;default:false" json:"is_banned"`
 }

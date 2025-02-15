@@ -60,7 +60,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	h.Repo.UpdateUser(data.ID, &models.User{RefreshToken: &hashedRefreshToken})
-	utils.SetCookies(c, tokens.AccessToken, tokens.RefreshToken)
 
 	c.JSON(http.StatusOK, gin.H{
 		"data": tokens,
@@ -109,7 +108,6 @@ func (r *AuthHandler) Login(c *gin.Context) {
 	}
 
 	r.Repo.UpdateUser(user.ID, &models.User{RefreshToken: &hashedRefreshToken})
-	utils.SetCookies(c, tokens.AccessToken, tokens.RefreshToken)
 
 	c.JSON(http.StatusOK, gin.H{
 		"data": tokens,
@@ -125,16 +123,17 @@ func (r *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	r.Repo.UpdateUser(sub.(uint), &models.User{RefreshToken: nil})
-	utils.ClearCookies(c)
 
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"success": true}})
 }
 
 func (r *AuthHandler) Refresh(c *gin.Context) {
-	refreshToken, err := c.Cookie("refresh_token")
+	authorization := c.Request.Header.Get("Authorization")
+	tokens := strings.Split(authorization, " ")
+	refreshToken := tokens[1]
 
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+	if refreshToken == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized!"})
 		return
 	}
 
@@ -164,14 +163,14 @@ func (r *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	tokens, err := utils.GenerateTokens(sub.(uint))
+	newTokens, err := utils.GenerateTokens(sub.(uint))
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	hashedRefreshToken, err := utils.Hash(tokens.RefreshToken)
+	hashedRefreshToken, err := utils.Hash(newTokens.RefreshToken)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -179,9 +178,8 @@ func (r *AuthHandler) Refresh(c *gin.Context) {
 	}
 
 	r.Repo.UpdateUser(sub.(uint), &models.User{RefreshToken: &hashedRefreshToken})
-	utils.SetCookies(c, tokens.AccessToken, tokens.RefreshToken)
 
 	c.JSON(http.StatusOK, gin.H{
-		"data": tokens,
+		"data": newTokens,
 	})
 }

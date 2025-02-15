@@ -80,3 +80,15 @@ func VerifyToken(s, secretKey string) (*jwt.Token, error) {
 
 	return token, nil
 }
+
+func IsTokenExpired(claims jwt.MapClaims) bool {
+	exp, ok := claims["exp"].(float64)
+
+	if !ok {
+		return true
+	}
+
+	expirationTime := time.Unix(int64(exp), 0)
+
+	return time.Now().After(expirationTime)
+}

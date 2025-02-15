@@ -14,6 +14,7 @@ func main() {
 	PORT := os.Getenv("PORT")
 
 	routes.LoadRoutes(r, db)
+	r.Static("/uploads", "./uploads")
 
 	r.Run(":" + PORT)
 }
