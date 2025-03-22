@@ -32,7 +32,7 @@ func LoadDBConfig() *gorm.DB {
 		panic("failed to connect database")
 	}
 
-	db.AutoMigrate(&models.User{})
+	db.AutoMigrate(&models.User{}, &models.Profile{})
 
 	log.Println("[DB] migrate database successfully.")
 	log.Println("[DB] database connection established successfully.")

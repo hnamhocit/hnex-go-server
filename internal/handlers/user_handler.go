@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"hnex_server/internal/models"
 	"hnex_server/internal/repositories"
 	"strconv"
 
@@ -11,10 +12,21 @@ type UserHandler struct {
 	Repo *repositories.UserRepository
 }
 
+type ActivateAccountData struct {
+	Name           string
+	ActivationCode string
+	ExpiresAt      string
+}
+
+type PasswordResetData struct {
+	Name string
+	ID   uint
+}
+
 func (h *UserHandler) GetUser(c *gin.Context) {
 	id := c.Param("id")
 
-	idUint, err := strconv.ParseUint(id, 10, 64)// Convert uint64 to uint for compatibility with GetUser method
+	idUint, err := strconv.ParseUint(id, 10, 64) // Convert uint64 to uint for compatibility with GetUser method
 	if err != nil {
 		c.JSON(400, gin.H{"code": 0, "msg": "Invalid ID"})
 		return
@@ -43,4 +55,56 @@ func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"code": 1, "msg": "User found", "data": user})
+}
+
+func (h *UserHandler) GetUsers(c *gin.Context) {
+	users, err := h.Repo.GetUsers()
+	if err != nil {
+		c.JSON(500, gin.H{"code": 0, "msg": "Internal server error"})
+		return
+	}
+
+	c.JSON(200, gin.H{"code": 1, "msg": "Users found", "data": users})
+}
+
+func (h *UserHandler) UpdateUser(c *gin.Context) {
+	var user models.User
+	id := c.Param("id")
+
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(400, gin.H{"code": 0, "msg": "Invalid request"})
+		return
+	}
+
+	uintId, err := strconv.ParseUint(id, 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"code": 0, "msg": "Invalid ID"})
+		return
+	}
+
+	err = h.Repo.UpdateUser(uint(uintId), &user)
+	if err != nil {
+		c.JSON(500, gin.H{"code": 0, "msg": "Internal server error"})
+		return
+	}
+
+	c.JSON(201, gin.H{"code": 1, "msg": "User updated", "data": id})
+}
+
+func (h *UserHandler) DeleteUser(c *gin.Context) {
+	id := c.Param("id")
+
+	uintId, err := strconv.ParseUint(id, 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"code": 0, "msg": "Invalid ID"})
+		return
+	}
+
+	err = h.Repo.DeleteUser(uint(uintId))
+	if err != nil {
+		c.JSON(500, gin.H{"code": 0, "msg": "Internal server error"})
+		return
+	}
+
+	c.JSON(200, gin.H{"code": 1, "msg": "User deleted", "data": id})
 }

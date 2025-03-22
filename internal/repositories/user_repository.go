@@ -25,3 +25,17 @@ func (r *UserRepository) GetUsers() ([]*models.User, error) {
 	}
 	return users, nil
 }
+
+func (r *UserRepository) UpdateUser(id uint, user *models.User) error {
+	if err := r.DB.Model(&models.User{}).Where("id = ?", id).Updates(user).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *UserRepository) DeleteUser(id uint) error {
+	if err := r.DB.Delete(&models.User{}, id).Error; err != nil {
+		return err
+	}
+	return nil
+}

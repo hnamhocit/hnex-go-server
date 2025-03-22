@@ -1,0 +1,113 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Activate Account</title>
+    </head>
+
+    <body
+        style="
+            font-family: &quot;Poppins&quot;, sans-serif;
+            padding: 16px;
+            border-radius: 24px;
+            color: #fff;
+            background: linear-gradient(65deg, #a855f7, #f472b6);
+        "
+    >
+        <div
+            style="
+                text-align: center;
+                font-size: 1.875rem;
+                line-height: 2.25rem;
+                font-weight: bold;
+            "
+        >
+            Activate Account
+        </div>
+
+        <div style="font-size: 1rem; line-height: 1.5rem">
+            Hi, <span style="font-weight: 600">{{.DisplayName}}</span> ✌️
+        </div>
+
+        <div style="font-size: 1rem; line-height: 1.5rem; margin: 16px auto">
+            Here is activation code, the code will expire at {{.ExpiresAt}}.
+            Please use it within the given time frame.
+        </div>
+
+        <div
+            style="
+                margin: 16px 0;
+                padding: 16px;
+                text-align: center;
+                font-size: 1.5rem;
+                line-height: 2rem;
+                font-weight: 700;
+                background-color: #fff;
+                color: #7e22ce;
+                border-radius: 0.5rem;
+            "
+        >
+            {{.ActivationCode}}
+        </div>
+
+        <div style="font-size: 1rem; line-height: 1.5rem">
+            If you did not request to activate your account, you can safely
+            ignore this email.
+        </div>
+
+        <div style="font-size: 1rem; line-height: 1.5rem; margin: 16px auto">
+            From <span style="font-weight: 600">HNEX team</span> ❤️️
+        </div>
+
+        <div style="display: flex">
+            <img
+                src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Facebook_Logo_%282019%29.png/640px-Facebook_Logo_%282019%29.png"
+                alt="Hnex Logo"
+                style="width: 2rem; height: 2rem; border-radius: 9999px"
+            />
+
+            <img
+                src="https://img.freepik.com/free-vector/new-2023-twitter-logo-x-icon-design_1017-45418.jpg"
+                alt="Hnex Logo"
+                style="
+                    width: 2rem;
+                    height: 2rem;
+                    border-radius: 9999px;
+                    margin-left: 16px;
+                "
+            />
+
+            <img
+                src="https://upload.wikimedia.org/wikipedia/commons/e/ef/Youtube_logo.png"
+                alt="Hnex Logo"
+                style="
+                    width: 2rem;
+                    height: 2rem;
+                    border-radius: 9999px;
+                    margin-left: 16px;
+                "
+            />
+
+            <img
+                src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Octicons-mark-github.svg/2048px-Octicons-mark-github.svg.png"
+                alt="Hnex Logo"
+                style="
+                    width: 2rem;
+                    height: 2rem;
+                    border-radius: 9999px;
+                    margin-left: 16px;
+                "
+            />
+        </div>
+
+        <div
+            style="
+                text-align: center;
+                font-size: 0.875rem;
+                line-height: 1.25rem;
+            "
+        >
+            © 2025 Hnex. All rights reserved.
+        </div>
+    </body>
+</html>
