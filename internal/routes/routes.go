@@ -26,7 +26,7 @@ func InitRoutes(c *gin.Engine) {
 			auth.POST("/register", authHandler.Register)
 			auth.GET("/logout", middlewares.AccessTokenMiddleware, authHandler.Logout)
 			auth.GET("/refresh", middlewares.RefreshTokenMiddleware, authHandler.Refresh)
-			auth.PATCH("/activate", middlewares.AccessTokenMiddleware, authHandler.ActivateAccount)
+			auth.POST("/activate", middlewares.AccessTokenMiddleware, authHandler.ActivateAccount)
 			auth.GET("/activate/refresh", middlewares.AccessTokenMiddleware, authHandler.RefreshActivateCode)
 		}
 
@@ -34,6 +34,7 @@ func InitRoutes(c *gin.Engine) {
 		{
 			userHandler := handlers.UserHandler{Repo: &userRepo}
 
+			users.GET("", userHandler.GetUsers)
 			users.GET("/me", middlewares.AccessTokenMiddleware, userHandler.GetCurrentUser)
 			users.GET("/:id", userHandler.GetUser)
 			users.PATCH("/:id", userHandler.UpdateUser)

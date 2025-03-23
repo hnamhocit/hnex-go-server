@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"errors"
+	"fmt"
 	"hnex_server/internal/models"
 	"hnex_server/internal/repositories"
 	"hnex_server/internal/utils"
@@ -22,17 +24,6 @@ type LoginDTO struct {
 	Password string `json:"password" binding:"required,min=8,max=100"`
 }
 
-type RegisterDTO struct {
-	DisplayName string `json:"display_name" binding:"required,min=2,max=32"`
-	Email       string `json:"email" binding:"required,email"`
-	Password    string `json:"password" binding:"required,min=8,max=100"`
-}
-
-type ActivateAccountDTO struct {
-	ActivationCode string `json:"activation_code" binding:"required"`
-	UserID         uint   `json:"user_id" binding:"required"`
-}
-
 func (h *AuthHandler) Login(c *gin.Context) {
 	var input LoginDTO
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -41,19 +32,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	var existingUser *models.User
-	if result := h.Repo.DB.Where("email = ?", input.Email).First(&existingUser); result.Error != nil {
-		c.JSON(500, gin.H{"code": 0, "msg": result.Error.Error()})
-		return
-	}
-
-	if existingUser == nil {
-		c.JSON(500, gin.H{"code": 0, "msg": "User not found!"})
+	if err := h.Repo.DB.Where("email = ?", input.Email).First(&existingUser).Error; err != nil {
+		c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[USER]: %v", err.Error())})
 		return
 	}
 
 	ok, err := utils.Verify(input.Password, existingUser.Password)
 	if err != nil {
-		c.JSON(500, gin.H{"code": 0, "msg": err.Error()})
+		c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[ARGON2]: %v", err.Error())})
 		return
 	}
 
@@ -64,17 +50,23 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	tokens, err := utils.GenerateTokens(existingUser.ID)
 	if err != nil {
-		c.JSON(500, gin.H{"code": 0, "msg": err.Error()})
+		c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[TOKEN]: %v", err.Error())})
 		return
 	}
 
 	updateErr := h.Repo.UpdateRefreshToken(existingUser.ID, &tokens.RefreshToken)
 	if updateErr != nil {
-		c.JSON(500, gin.H{"code": 0, "msg": updateErr.Error()})
+		c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[USER]: %v", updateErr.Error())})
 		return
 	}
 
 	c.JSON(200, gin.H{"code": 1, "msg": "Login successful!", "data": tokens})
+}
+
+type RegisterDTO struct {
+	DisplayName string `json:"display_name" binding:"required,min=2,max=32"`
+	Email       string `json:"email" binding:"required,email"`
+	Password    string `json:"password" binding:"required,min=8,max=100"`
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
@@ -85,20 +77,17 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	existingUser := &models.User{}
-	result := h.Repo.DB.Where("email = ?", input.Email).First(existingUser)
-	if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
-		c.JSON(500, gin.H{"code": 0, "msg": result.Error.Error()})
-		return
-	}
-
-	if existingUser.ID != 0 {
-		c.JSON(500, gin.H{"code": 0, "msg": "Email already exists!"})
-		return
+	err := h.Repo.DB.Where("email = ?", input.Email).First(existingUser).Error
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[USER]: %v", err)})
+			return
+		}
 	}
 
 	hashedPassword, err := utils.Hash(input.Password)
 	if err != nil {
-		c.JSON(500, gin.H{"code": 0, "msg": err.Error()})
+		c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[PASSWORD]: %v", err)})
 		return
 	}
 
@@ -109,25 +98,25 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	if err := h.Repo.DB.Create(newUser).Error; err != nil {
-		c.JSON(500, gin.H{"code": 0, "msg": err.Error()})
+		c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[USER]: %v", err)})
 		return
 	}
 
 	tokens, err := utils.GenerateTokens(newUser.ID)
 	if err != nil {
-		c.JSON(500, gin.H{"code": 0, "msg": err.Error()})
+		c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[TOKENS]: %v", err)})
 		return
 	}
 
 	updateUserErr := h.Repo.UpdateRefreshToken(newUser.ID, &tokens.RefreshToken)
 	if updateUserErr != nil {
-		c.JSON(500, gin.H{"code": 0, "msg": updateUserErr.Error()})
+		c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[USER]: %v", updateUserErr)})
 		return
 	}
 
 	createProfileErr := h.ProfileRepo.Create(newUser.ID)
 	if createProfileErr != nil {
-		c.JSON(500, gin.H{"code": 0, "msg": createProfileErr.Error()})
+		c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[PROFILE]: %v", createProfileErr)})
 		return
 	}
 
@@ -139,12 +128,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		}
 		activationCode, expiresAt := utils.GenerateActivationCode()
 
-		var profile models.Profile
-		err := h.Repo.DB.Model(&models.Profile{}).Where("user_id = ?", newUser.ID).First(&profile).Error
-		if err != nil {
-			log.Printf("[PROFILE] Error fetching profile: %v", err.Error())
-		}
-
 		data := ActivationCodeData{
 			DisplayName:    newUser.DisplayName,
 			ActivationCode: activationCode,
@@ -153,12 +136,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 		err = h.Repo.UpdateActivationCode(newUser.ID, activationCode, expiresAt)
 		if err != nil {
-			log.Printf("[PROFILE] Error updating profile activation code: %v", err)
+			log.Printf("[PROFILE]: %v", err.Error())
 		}
 
-		err = SendMail("Activate Account", newUser.Email, "activation_email", data)
+		err = SendMail("Activate Account", newUser.Email, "activate_account", data)
 		if err != nil {
-			log.Printf("[MAIL] Error sending activation email: %v", err)
+			log.Printf("[MAIL]: %v", err.Error())
 		}
 	}()
 
@@ -168,31 +151,31 @@ func (h *AuthHandler) Register(c *gin.Context) {
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	sub, ok := c.Get("sub")
 	if !ok {
-		c.JSON(500, gin.H{"code": 0, "msg": "Invalid token!"})
+		c.JSON(400, gin.H{"code": 0, "msg": "Invalid id!"})
 		return
 	}
 
-	user := &models.User{}
-	result := h.Repo.DB.Where("id = ?", sub).First(user)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			c.JSON(500, gin.H{"code": 0, "msg": "User not found!"})
-			return
-		}
+	userID, ok := sub.(uint)
+	if !ok {
+		c.JSON(400, gin.H{"code": 0, "msg": "Invalid id!"})
+		return
+	}
 
-		c.JSON(500, gin.H{"code": 0, "msg": result.Error.Error()})
+	user, err := h.UserRepo.GetUser(userID)
+	if err != nil {
+		c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[USER]: %v", err.Error())})
 		return
 	}
 
 	tokens, err := utils.GenerateTokens(user.ID)
 	if err != nil {
-		c.JSON(500, gin.H{"code": 0, "msg": err.Error()})
+		c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[TOKEN]: %v", err.Error())})
 		return
 	}
 
 	updateErr := h.Repo.UpdateRefreshToken(user.ID, &tokens.RefreshToken)
 	if updateErr != nil {
-		c.JSON(500, gin.H{"code": 0, "msg": updateErr.Error()})
+		c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[UPDATE]: %v", updateErr.Error())})
 		return
 	}
 
@@ -207,24 +190,23 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	user := &models.User{}
-	result := h.Repo.DB.Where("id = ?", sub).First(user)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			c.JSON(500, gin.H{"code": 0, "msg": "User not found!"})
-			return
-		}
-
-		c.JSON(500, gin.H{"code": 0, "msg": result.Error.Error()})
+	err := h.Repo.DB.Where("id = ?", sub).First(user).Error
+	if err != nil {
+		c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[USER]: %v", err.Error())})
 		return
 	}
 
 	updateErr := h.Repo.UpdateRefreshToken(user.ID, nil)
 	if updateErr != nil {
-		c.JSON(500, gin.H{"code": 0, "msg": updateErr.Error()})
+		c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[USER]: %v", updateErr.Error())})
 		return
 	}
 
 	c.JSON(200, gin.H{"code": 1, "msg": "Logout successful!"})
+}
+
+type ActivateAccountDTO struct {
+	ActivationCode string `json:"activation_code" binding:"required"`
 }
 
 func (h *AuthHandler) ActivateAccount(c *gin.Context) {
@@ -234,9 +216,21 @@ func (h *AuthHandler) ActivateAccount(c *gin.Context) {
 		return
 	}
 
-	user, err := h.UserRepo.GetUser(input.UserID)
+	sub, ok := c.Get("sub")
+	if !ok {
+		c.JSON(400, gin.H{"code": 0, "msg": "Invalid id!"})
+		return
+	}
+
+	userID, ok := sub.(uint)
+	if !ok {
+		c.JSON(400, gin.H{"code": 0, "msg": "Invalid id!"})
+		return
+	}
+
+	user, err := h.UserRepo.GetUser(userID)
 	if err != nil {
-		c.JSON(500, gin.H{"code": 0, "msg": err.Error()})
+		c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[USER]: %v", err)})
 		return
 	}
 
@@ -250,9 +244,9 @@ func (h *AuthHandler) ActivateAccount(c *gin.Context) {
 		return
 	}
 
-	emailVerifiedErr := h.Repo.EmailVerified(input.UserID)
+	emailVerifiedErr := h.Repo.EmailVerified(userID)
 	if emailVerifiedErr != nil {
-		c.JSON(500, gin.H{"code": 0, "msg": emailVerifiedErr.Error()})
+		c.JSON(500, gin.H{"code": 0, "msg": fmt.Sprintf("[EMAIL]: %v", emailVerifiedErr.Error())})
 		return
 	}
 
@@ -261,19 +255,21 @@ func (h *AuthHandler) ActivateAccount(c *gin.Context) {
 	}})
 }
 
-type RefreshActivationCodeDTO struct {
-	UserID uint `json:"user_id" binding:"required"`
-}
-
 func (h *AuthHandler) RefreshActivateCode(c *gin.Context) {
-	var input RefreshActivationCodeDTO
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(400, gin.H{"code": 0, "msg": err.Error()})
+	sub, ok := c.Get("sub")
+	if !ok {
+		c.JSON(400, gin.H{"code": 0, "msg": "Invalid id!"})
+		return
+	}
+
+	userID, ok := sub.(uint)
+	if !ok {
+		c.JSON(400, gin.H{"code": 0, "msg": "Invalid id!"})
 		return
 	}
 
 	activationCode, expiresAt := utils.GenerateActivationCode()
-	if err := h.Repo.UpdateActivationCode(input.UserID, activationCode, expiresAt); err != nil {
+	if err := h.Repo.UpdateActivationCode(userID, activationCode, expiresAt); err != nil {
 		c.JSON(500, gin.H{"code": 0, "msg": err.Error()})
 		return
 	}

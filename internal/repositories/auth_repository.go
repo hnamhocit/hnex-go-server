@@ -30,7 +30,7 @@ func (r *AuthRepository) EmailVerified(userID uint) error {
 }
 
 func (r *AuthRepository) UpdateActivationCode(userId uint, activationCode string, expiresAt time.Time) error {
-	return r.DB.Model(&models.User{}).Where("user_id = ?", userId).Updates(models.User{
+	return r.DB.Model(&models.User{}).Where("id = ?", userId).Updates(models.User{
 		ActivationCode:          &activationCode,
 		ActivationCodeExpiresAt: &expiresAt,
 	}).Error

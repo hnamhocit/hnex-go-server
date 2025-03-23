@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"errors"
 	"hnex_server/internal/models"
 	"hnex_server/internal/repositories"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type UserHandler struct {
@@ -34,7 +36,12 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 
 	user, err := h.Repo.GetUser(uint(idUint))
 	if err != nil {
-		c.JSON(404, gin.H{"code": 0, "msg": "User not found"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(404, gin.H{"code": 0, "msg": "User not found"})
+			return
+		}
+
+		c.JSON(500, gin.H{"code": 0, "msg": err.Error()})
 		return
 	}
 
@@ -50,7 +57,12 @@ func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 
 	user, err := h.Repo.GetUser(sub.(uint))
 	if err != nil {
-		c.JSON(404, gin.H{"code": 0, "msg": "User not found"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(404, gin.H{"code": 0, "msg": "User not found"})
+			return
+		}
+
+		c.JSON(500, gin.H{"code": 0, "msg": err.Error()})
 		return
 	}
 
@@ -94,17 +106,22 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	id := c.Param("id")
 
-	uintId, err := strconv.ParseUint(id, 10, 64)
+	parseUint, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
 		c.JSON(400, gin.H{"code": 0, "msg": "Invalid ID"})
 		return
 	}
 
-	err = h.Repo.DeleteUser(uint(uintId))
+	err = h.Repo.DeleteUser(uint(parseUint))
 	if err != nil {
-		c.JSON(500, gin.H{"code": 0, "msg": "Internal server error"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(404, gin.H{"code": 0, "msg": "User not found"})
+			return
+		}
+
+		c.JSON(500, gin.H{"code": 0, "msg": err.Error()})
 		return
 	}
 
-	c.JSON(200, gin.H{"code": 1, "msg": "User deleted", "data": id})
+	c.JSON(200, gin.H{"code": 1, "msg": "User deleted", "data": gin.H{"id": parseUint}})
 }

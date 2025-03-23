@@ -15,6 +15,7 @@ func (r *UserRepository) GetUser(id uint) (*models.User, error) {
 	if err := r.DB.First(&user, id).Error; err != nil {
 		return nil, err
 	}
+
 	return &user, nil
 }
 
@@ -23,6 +24,7 @@ func (r *UserRepository) GetUsers() ([]*models.User, error) {
 	if err := r.DB.Find(&users).Error; err != nil {
 		return nil, err
 	}
+
 	return users, nil
 }
 
@@ -30,12 +32,17 @@ func (r *UserRepository) UpdateUser(id uint, user *models.User) error {
 	if err := r.DB.Model(&models.User{}).Where("id = ?", id).Updates(user).Error; err != nil {
 		return err
 	}
+
 	return nil
 }
 
 func (r *UserRepository) DeleteUser(id uint) error {
-	if err := r.DB.Delete(&models.User{}, id).Error; err != nil {
-		return err
+	// hard delete
+	result := r.DB.Unscoped().Delete(&models.User{}, id)
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
 	}
-	return nil
+
+	return result.Error
 }

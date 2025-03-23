@@ -11,7 +11,7 @@ type ProfileRepository struct {
 }
 
 func (r *ProfileRepository) Create(userId uint) error {
-	return r.DB.Where("user_id = ?", userId).First(&models.Profile{UserID: userId}).Error
+	return r.DB.Create(&models.Profile{UserID: userId}).Error
 }
 
 func (r *ProfileRepository) Get(userId uint) (*models.Profile, error) {
